@@ -1,4 +1,3 @@
-// Log levels
 my.loglevel = 4;
 Ractive.DEBUG = (my.log_level >= 4);
 
@@ -359,3 +358,186 @@ var ractive = new Ractive({
         }
     );
 },
+
+addMessage: function (key, text) {
+    switch (key) {
+        case 'debug':
+        case 'warning':
+        case 'error':
+            type=key;
+            break;
+        case 'you':
+            type='you';
+            key=ractive.get('server.username');
+            break;
+        case 'answer':
+            type="jarvis";
+            key=ractive.get('server.trigger');
+            break;
+        default:
+            my.error ('unknown key: '+key);
+    }
+    this.push ('messages', {
+        type: type,
+        key: key,
+        text: text
+    });
+}
+});
+
+ractive.observe('client.theme', function ( newValue, oldValue, keypath ) {
+    themesheet.attr('href',themes[newValue]);
+});
+
+ractive.on ('record', function () {
+    if (ractive.get ('stt_state') == "recording") {
+        recognition.stop ();
+        ractive.set ('placeholder', 'Type something...');
+        return;
+    }
+    recognition.start();
+    ignore_onend = false;
+    ractive.set ('stt_state', 'recording');
+    ractive.set ('placeholder', 'Say something...');
+    //my.warn ('Click the "Allow" button above to enable your microphone.');
+    start_recording = Date.now();
+});
+
+ractive.on ('open_commands', function (e) {
+    my.post({
+        url: ractive.get ('server_url'),
+        data: JSON.stringify ({
+            key: ractive.get ("client.key"),
+            action: "get_commands"
+        }),
+        success: function (result) {
+            $('#commands_modal').modal('show');
+            commmands_cm.setValue (result.commands);
+            setTimeout(function() {
+                commmands_cm.refresh();
+                commmands_cm.focus();
+            }, 500);
+        }
+    });
+});
+
+ractive.on ('commands_save_btn', function (e) {
+    $('#commands_modal').modal('hide');
+    my.post({
+        url: ractive.get ('server_url'),
+        data: JSON.stringify ({
+            key: ractive.get ("client.key"),
+            action: "set_commands",
+            commands: commmands_cm.getValue()
+        }),
+        success: function (message) {
+            my.success ("Commands saved successfuly");
+        }
+    });
+});
+
+ractive.on ('open_events', function (e) {
+    my.post({
+        url: ractive.get ('server_url'),
+        data: JSON.stringify ({
+            key: ractive.get ("client.key"),
+            action: "get_events"
+        }),
+        success: function (result) {
+            $('#events_modal').modal('show');
+            events_cm.setValue (result.events);
+            setTimeout(function() {
+                events_cm.refresh();
+                events_cm.focus();
+            }, 500);
+        }
+    });
+});
+
+ractive.on ('events_save_btn', function (e) {
+    $('#events_modal').modal('hide');
+    my.post({
+        url: ractive.get ('server_url'),
+        data: JSON.stringify ({
+            key: ractive.get ("client.key"),
+            action: "set_events",
+            events: events_cm.getValue()
+        }),
+        success: function (message) {
+            my.success ("Events saved successfuly");
+        }
+    });
+});
+
+ractive.on ('client_save_btn', function (e) {
+    $('#client_settings_modal').modal('hide');
+    my.setObjects ('client', ractive.get ('client'));
+    my.success ("Settings saved successfuly");
+});
+
+ractive.on ('open_settings', function () {
+    // reload config
+    my.post({
+        url: ractive.get ('server_url'),
+        data: JSON.stringify ({
+            key: ractive.get ("client.key"),
+            action: "get_config"
+        }),
+        success: function (config) {
+            ractive.set ('server', config);
+            // open jarvis settings modal
+            $('#settings_modal').modal('show');
+            // select first tab
+            $('#settings_modal ul.nav-pills > li > a').first().click();
+        }
+    });
+});
+
+ractive.on ('settings_save_btn', function (e) {
+    $('#settings_modal').modal('hide');
+    my.post({
+        url: ractive.get ('server_url'),
+        data: JSON.stringify ({
+            key: ractive.get ("client.key"),
+            action: "set_config",
+            config: ractive.get('server')
+        }),
+        success: function (message) {
+            my.success ("Settings saved successfuly");
+        }
+    });
+});
+
+ractive.on('submit', function(event) {
+    my.debug (event);
+    try {
+        event.original.preventDefault();
+    } catch (e) {}
+    var order=ractive.get('order'),
+    action=ractive.get ('action'),
+    data={
+        key: ractive.get ("client.key"),
+        verbose: ractive.get('client.verbose')
+    };
+    ractive.set('order', '');
+    data[action]=order;
+    if (action == "order") {
+        data.mute=ractive.get('client.mute');
+        ractive.addMessage ('you', order);
+        $(".panel-body").animate({ scrollTop: 9999 });
+    } else {
+        data.mute=false;
+    }
+    my.post({
+        url: ractive.get ('server_url'),
+        data: JSON.stringify (data),
+        success: function (messages) {
+            $.each (messages, function () {
+                $.each (this, function (key, text) {
+                    ractive.addMessage (key, text);
+                });
+            });
+            $(".panel-body").animate({ scrollTop: 9999 });
+        }
+    });
+});
