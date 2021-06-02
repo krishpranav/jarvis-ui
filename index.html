@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- The above 3 meta tags *must* come first in the head; any other head content must come *after* these tags -->
+    <title>Jarvis UI</title>
+    
+    <link rel="icon" type="image/png" href="img/jarvis_logo_icon.png" />
+    
+    <!-- Bootstrap -->
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+    <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+    <!--[if lt IE 9]>
+    <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+    <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+    <![endif]-->
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <!-- Libraries -->
+    <link rel="stylesheet" href="lib/codemirror/lib/codemirror.css">
+    <!-- App CSS -->
+    <link rel="stylesheet" href="css/my.css">
+</head>
+<body>
+    <div id="container"></div>
+    
+    <script id="template" type="text/ractive">
+    <div class="container">
+        <div class="panel panel-default center-block">
+            <div class="panel-heading clearfix">
+                <a href="http://domotiquefacile.fr/jarvis" target="_blank"><img src="img/jarvis_logo_red.png" /></a>
+                {{#loading}}<span class="fa fa-spinner rotate"></span> <span class="text-muted">loading...</span>{{/}}
+                <div class="btn-group pull-right">
+                    <div class="btn-group">
+                        <button class="btn btn-default dropdown-toggle" data-toggle="dropdown" {{#loading}}disabled="disabled"{{/}}>
+                            <span class="fa fa-cog"></span> <span class="caret"></span>
+                        </button>
+                        <ul class="dropdown-menu pull-right">
+                            <li><a href="#" on-click="open_commands">
+                                <span class="fa fa-file-code-o"></span> Commands
+                            </a></li>
+                            <li><a href="#" on-click="open_events">
+                                <span class="fa fa-calendar"></span> Events
+                            </a></li>
+                            <li><a href="#" data-toggle="modal" data-target="#client_settings_modal">
+                                <span class="fa fa-sliders"></span> Client settings
+                            </a></li>
+                            <li><a href="#" on-click="open_settings">
+                                <span class="fa fa-cog"></span> Jarvis settings
+                            </a></li>
+                        </ul>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn btn-default dropdown-toggle" data-toggle="dropdown">
+                            <span class="fa fa-question"></span> <span class="caret"></span>
+                        </button>
+                        <ul class="dropdown-menu pull-right">
+                            <li><a href="http://domotiquefacile.fr/jarvis/content/support" target="_blank">
+                                <span class="fa fa-question"></span> Get Support
+                            </a></li>
+                            <li><a href="https://github.com/alexylem/jarvis-ui/issues/new" target="_blank">
+                                <span class="fa fa-exclamation-triangle"></span> Report an issue on Jarvis UI
+                            </a></li>
+                            <li><a href="https://github.com/alexylem/jarvis/issues/new" target="_blank">
+                                <span class="fa fa-exclamation-triangle"></span> Report an issue on Jarvis
+                            </a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="panel-body">
+                <ul>
+                {{#messages:i}}
+                    <li class="{{this.type}}"><span class="key">{{this.key}}:</span> {{this.text}}</li>
+                {{/messages}}
+                </ul>
+            </div>
+            <div class="panel-footer">
+                <form on-submit="submit">
+                    <div class="row">
+                        <div class="col-xs-3">
+                            <select value="{{action}}" class="form-control">
+                                <option value="order">Execute</option>
+                                <option value="say">Say</option>
+                            </select>
+                        </div>
+                        <div class="col-xs-9">
+                            <div class="input-group">
+                                <span class="input-group-btn">
+                                    <button class="btn btn-{{#if stt_state == 'recording'}}danger{{else}}default{{/if}}" type="button" on-click="record" {{#unless stt_supported}}disabled="disabled"{{/unless}}><span class="fa {{stt_icons[stt_state]}}"></span></button>
+                                </span>
+                                <input id="order_input" type="text" class="form-control" placeholder="{{placeholder}}" value="{{order}}">                                   
+                                <span class="input-group-btn">
+                                    <button class="btn btn-success" type="button" on-click="submit" {{#loading}}disabled="disabled"{{/}}><span class="glyphicon glyphicon-send"></span></button>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Commands -->
+    <div class="modal fade" id="commands_modal" data-keyboard="false" data-backdrop="static">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <a href="http://domotiquefacile.fr/jarvis/content/commands" target="_blank" class="btn btn-default pull-right"><span class="fa fa-lightbulb-o"></span> Advices</a>
+                    <h4 class="modal-title">User Commands</h4>
+                </div>
+                <div class="modal-body">
+                    <textarea id="commands_textarea" class="form-control" rows="10"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                    <button on-click="commands_save_btn" type="button" class="btn btn-success">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Events -->
+    <div class="modal fade" id="events_modal" data-keyboard="false" data-backdrop="static">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <a href="http://domotiquefacile.fr/jarvis/content/events" target="_blank" class="btn btn-default pull-right"><span class="fa fa-lightbulb-o"></span> Advices</a>
+                    <h4 class="modal-title">Events</h4>
+                </div>
+                <div class="modal-body">
+                    <textarea id="events_textarea" class="form-control" rows="10"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                    <button on-click="events_save_btn" type="button" class="btn btn-success">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Client Settings -->
+    <div class="modal fade" id="client_settings_modal" data-keyboard="false" data-backdrop="static">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Client Settings</h4>
+                </div>
+                <div class="modal-body row">
+                    <div class="form-group col-md-6">
+                        <label for="port" class="control-label">Javis-API Port</label>
+                        <input class="form-control" type="number" id="port" value="{{client.port}}" placeholder="ex: 8080">
+                        <span class="text-muted">Port Number of Jarvis API (see in plugin configuration)</span>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="key" class="control-label">Javis-API Key</label>
+                        <input class="form-control" type="text" id="key" value="{{client.key}}">
+                        <span class="text-muted">(optional) Jarvis API Key (see in plugin configuration)</span>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="theme" class="control-label">Theme</label>
+                        <select id="theme" value="{{client.theme}}" class="form-control">
+                            <option value="slate">Dark</option>
+                            <option value="default">Light</option>
+                        </select>
+                        <span class="text-muted">Theme for User Interface</span>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <div class="checkbox">
+                          <label>
+                            <input type="checkbox" checked="{{client.mute}}">
+                            Mute
+                          </label>
+                          <span class="text-muted clearfix">Check this to mute remote Jarvis and only have textual responses</span>
+                        </div>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <div class="checkbox">
+                          <label>
+                            <input type="checkbox" checked="{{client.verbose}}">
+                            Verbose
+                          </label>
+                          <span class="text-muted clearfix">Call Jarvis in Troubleshooting mode to display DEBUG messages</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-success" on-click="client_save_btn">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Jarvis Settings -->
+    <div class="modal fade" id="settings_modal" data-keyboard="false" data-backdrop="static">
+        <div class="modal-dialog modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <!-- Nav tabs -->
+                    <ul class="nav nav-pills">
+                        {{#each config_tabs}}
+                            <li><a href="#{{this.key}}" data-toggle="tab">{{this.label}}</a></li>
+                        {{/each}}
+                        <li><a href="#hooks" data-toggle="tab">Hooks</a></li>
+                    </ul>
+                </div>
+                <div class="modal-body">
+                    <!-- Tab panes -->
+                    <div class="tab-content">
+                        {{#each config_tabs}}
+                        <div class="tab-pane fade row" id="{{this.key}}">
+                            {{#each this.fields:key}}
+                                <div class="form-group col-md-6">
+                                    {{#if this.type=="checkbox"}}
+                                        <div class="checkbox">
+                                            <label>
+                                                <input type="checkbox" checked="{{server[this.key]}}">
+                                                {{this.label}}
+                                            </label>
+                                            <span class="text-muted clearfix">{{this.help}}</span>
+                                        </div>
+                                    {{else}}
+                                        <label for="{{this.key}}" class="control-label">{{this.label}}</label>
+                                        {{#if this.type=="select"}}
+                                            <select id="{{this.key}}" value="{{server[this.key]}}" class="form-control">
+                                                {{#each this.options}}
+                                                    <option value="{{this.value}}">{{this.label}}</option>
+                                                {{/each}}
+                                            </select>
+                                        {{else}}
+                                            <input class="form-control" type="{{this.type}}" id="{{this.key}}" value="{{server[this.key]}}" placeholder="{{this.placeholder}}">
+                                        {{/if}}
+                                        <span class="text-muted">{{this.help}}</span>
+                                    {{/if}}
+                                </div>
+                            {{/each}}
+                        </div>
+                        {{/each}}
+                        <div class="tab-pane fade" id="hooks">
+                            <p class="text-warning">Only available from within Jarvis app</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" on-click="settings_save_btn">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    </script>
+    
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js"></script>
+    <!-- Include all compiled plugins (below), or include individual files as needed -->
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+    <script src="https://cdn.rawgit.com/mouse0270/bootstrap-notify/master/bootstrap-notify.min.js"></script>
+    <!-- Ractive JS -->
+    <script src="https://cdn.rawgit.com/ractivejs/cdn.ractivejs.org/gh-pages/latest/ractive.min.js"></script>
+    <!-- Async script loader -->
+    <script src="https://cdn.rawgit.com/premasagar/cmd.js/master/cmd.js"></script>
+    <!-- My utils -->
+    <script src="js/utils.js?v=170106200330"></script>
+    <!-- App js -->
+    <script src="js/my.js?v=170106200330"></script>
+</body>
+</html>
